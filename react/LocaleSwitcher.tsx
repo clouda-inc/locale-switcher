@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Spinner } from 'vtex.styleguide'
 import { SupportedLanguage } from 'langs'
 import { IconGlobe } from 'vtex.store-icons'
@@ -7,6 +7,9 @@ import { useRuntime, Culture } from 'vtex.render-runtime'
 
 import getLabel from './modules/getLabel'
 import LocaleSwitcherList from './components/LocaleSwitcherList'
+import LOCALES from './graphql/locales.gql'
+import getSupportedLangs from './modules/getSupportedLangs'
+import { useQuery } from 'react-apollo'
 
 const CSS_HANDLES = [
   'list',
@@ -18,6 +21,16 @@ const CSS_HANDLES = [
   'loadingContainer',
   'relativeContainer',
 ] as const
+
+interface LocalesQuery {
+  languages: {
+    default: string
+    supported: string[]
+  }
+  currentBinding: {
+    supportedLocales: string[]
+  } | null
+}
 
 function parseToSupportedLang({ language, locale }: Culture) {
   return {
@@ -36,6 +49,26 @@ const LocaleSwitcher: React.FC = () => {
     parseToSupportedLang(culture)
   )
   const handles = useCssHandles(CSS_HANDLES)
+
+  const { data, loading, error } = useQuery<LocalesQuery>(LOCALES, {
+    ssr: false,
+  })
+
+  const supportedLanguages =
+    data?.currentBinding?.supportedLocales ?? data?.languages?.supported ?? []
+  const supportedLangs = getSupportedLangs(supportedLanguages)
+
+  useEffect(() => {
+    if(!supportedLangs || supportedLangs.length === 0 || !culture || !culture.locale ) return
+    
+    const firstLocaleId = supportedLangs.find((x) => x !== undefined)?.localeId ?? ''
+
+    if(firstLocaleId && firstLocaleId.toUpperCase() !== 'EN-US' && (culture?.locale ?? '').toUpperCase() !== firstLocaleId.toUpperCase()) {
+      emitter.emit('localesChanged', supportedLangs[0].localeId)
+    }
+
+  }, [supportedLangs, culture])
+  
 
   const handleLocaleClick = (newLang: SupportedLanguage) => {
     setSelectedLocale(newLang)
@@ -76,6 +109,9 @@ const LocaleSwitcher: React.FC = () => {
         {shouldRenderList && (
           <LocaleSwitcherList
             open={open}
+            loading={loading}
+            error={error}
+            supportedLangs={supportedLangs}
             onItemClick={handleLocaleClick}
             selectedLocale={selectedLocale}
           />

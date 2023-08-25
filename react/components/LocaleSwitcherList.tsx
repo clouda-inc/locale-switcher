@@ -1,27 +1,17 @@
 import React from 'react'
-import { useQuery } from 'react-apollo'
 import { SupportedLanguage } from 'langs'
 import { useCssHandles } from 'vtex.css-handles'
 
 import Spinner from './Spinner'
 import getLabel from '../modules/getLabel'
-import LOCALES from '../graphql/locales.gql'
-import getSupportedLangs from '../modules/getSupportedLangs'
 
 interface Props {
   open?: boolean
+  loading: boolean
+  error: any
+  supportedLangs: SupportedLanguage[]
   selectedLocale: SupportedLanguage
   onItemClick: (selectedLang: SupportedLanguage) => void
-}
-
-interface LocalesQuery {
-  languages: {
-    default: string
-    supported: string[]
-  }
-  currentBinding: {
-    supportedLocales: string[]
-  } | null
 }
 
 function getLocale(supportedLangs: SupportedLanguage[], locale: string) {
@@ -46,13 +36,9 @@ const CSS_HANDLES = [
 ] as const
 
 export default function LocaleSwitcherList(props: Props) {
-  const { open = false, onItemClick, selectedLocale } = props
+  const { open = false, onItemClick, selectedLocale, loading, error, supportedLangs } = props
   const handles = useCssHandles(CSS_HANDLES)
-  const { data, loading, error } = useQuery<LocalesQuery>(LOCALES)
 
-  const supportedLanguages =
-    data?.currentBinding?.supportedLocales ?? data?.languages?.supported ?? []
-  const supportedLangs = getSupportedLangs(supportedLanguages)
 
   if (loading && open) {
     return <Spinner handles={handles} />
